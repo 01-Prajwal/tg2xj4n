@@ -153,6 +153,50 @@ def test_forecast_vintages_unknown_target_404(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_decision_at_cutoff_uses_0930_run(client: TestClient) -> None:
+    body = client.get("/api/decision", params={"decision_time": "2026-01-14T11:00:00Z"}).json()
+    assert body["delivery_day"] == DAY
+    assert body["run_publish_time"].startswith("2026-01-14T09:30")
+    assert body["next_run_publish_time"].startswith("2026-01-14T15:30")
+    assert body["expected_hours"] == 24
+    assert len(body["hours"]) == 24
+    assert body["hours"][0]["forecast_mw"] == 1000
+    assert [r["publish_time"][11:16] for r in body["runs"]] == ["09:30"]
+    # The fixture has no actuals before 14 Jan, so no errors are known yet.
+    assert body["error_model"]["n"] == 0
+    assert body["hours"][0]["low_mw"] is None
+    assert body["totals"]["forecast_mwh"] == 24_000
+    assert body["totals"]["count_on_mwh"] is None
+
+
+def test_decision_later_in_day_sees_newer_run(client: TestClient) -> None:
+    body = client.get("/api/decision", params={"decision_time": "2026-01-14T16:00:00Z"}).json()
+    assert body["run_publish_time"].startswith("2026-01-14T15:30")
+    assert body["hours"][0]["forecast_mw"] == 1100
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"decision_time": "2026-02-01T11:00:00Z"},
+        {"decision_time": "2025-12-31T11:00:00Z"},
+        {"confidence": 1.5},
+        {"lookback_days": 1},
+    ],
+)
+def test_decision_rejects_out_of_scope_params(
+    client: TestClient, params: dict[str, object]
+) -> None:
+    assert client.get("/api/decision", params=params).status_code == 422
+
+
+def test_decision_backtest_covers_every_january_decision(client: TestClient) -> None:
+    body = client.get("/api/decision/backtest", params={"confidence": 0.8}).json()
+    assert body["confidence"] == 0.8
+    assert len(body["days"]) == 31
+    assert body["days"][0]["decision_day"] == "2026-01-01"
+
+
 def test_serves_frontend_build_when_present(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

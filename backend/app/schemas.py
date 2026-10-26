@@ -1,6 +1,6 @@
 """API response models. These define the JSON contract the frontend relies on."""
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -116,6 +116,78 @@ class ByHorizonResponse(BaseModel):
     window: Window
     basis: ActualBasis
     horizons: list[HorizonStat]
+
+
+class DecisionHour(BaseModel):
+    start_time: datetime
+    forecast_mw: float
+    lead_h: float
+    low_mw: float | None = Field(description="Wind to count on at the chosen confidence")
+    median_mw: float | None = Field(description="Forecast corrected by the median recent error")
+    high_mw: float | None
+    actual_mw: float | None = Field(description="Hindsight only: not known at decision time")
+
+
+class DecisionRun(BaseModel):
+    publish_time: datetime
+    mean_forecast_mw: float
+    hours_covered: int
+
+
+class ErrorModel(BaseModel):
+    n: int = Field(description="Hourly errors already known at decision time")
+    window_start: datetime
+    window_end: datetime
+    confidence: float
+    low_mw: float | None
+    median_mw: float | None
+    high_mw: float | None
+    bias_mw: float | None
+    mae_mw: float | None
+
+
+class EnergyTotals(BaseModel):
+    forecast_mwh: float
+    count_on_mwh: float | None
+    expected_mwh: float | None
+    extra_cover_mwh: float | None = Field(description="forecast - count_on: cover to buy")
+    actual_mwh: float | None = Field(description="Hindsight only")
+    hours_below_count_on: int | None = Field(description="Hindsight only")
+
+
+class DecisionResponse(BaseModel):
+    decision_time: datetime
+    delivery_day: date
+    delivery_start: datetime
+    delivery_end: datetime
+    run_publish_time: datetime | None = Field(description="Latest forecast run available")
+    next_run_publish_time: datetime | None
+    expected_hours: int
+    hours: list[DecisionHour]
+    runs: list[DecisionRun] = Field(description="Every run for the delivery day published so far")
+    error_model: ErrorModel
+    totals: EnergyTotals
+
+
+class BacktestDay(BaseModel):
+    decision_day: date
+    delivery_day: date
+    hours: int
+    hours_above_count_on: int
+    forecast_mwh: float
+    count_on_mwh: float | None
+    actual_mwh: float | None
+    extra_cover_mwh: float | None
+
+
+class BacktestResponse(BaseModel):
+    confidence: float
+    lookback_days: int
+    decision_hour_uk: int
+    hours: int
+    hit_rate_pct: float | None = Field(description="% of hours with actual >= count-on line")
+    mean_extra_cover_mwh: float | None
+    days: list[BacktestDay]
 
 
 class Vintage(BaseModel):

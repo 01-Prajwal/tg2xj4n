@@ -1,5 +1,8 @@
 import type {
+  BacktestResponse,
   ByHorizonResponse,
+  DecisionParams,
+  DecisionResponse,
   ByHourResponse,
   Filters,
   Health,
@@ -73,4 +76,26 @@ export const api = {
     ),
   vintages: (target: string, basis: Filters['basis'], signal?: AbortSignal) =>
     get<VintagesResponse>('/forecast-vintages', { target, basis }, signal),
+  decision: (p: DecisionParams, signal?: AbortSignal) =>
+    get<DecisionResponse>(
+      '/decision',
+      {
+        decision_time: p.decisionTime,
+        confidence: p.confidence,
+        lookback_days: p.lookbackDays,
+        basis: p.basis,
+      },
+      signal,
+    ),
+  backtest: (p: Omit<DecisionParams, 'decisionTime'> & { decisionHour: number }, signal?: AbortSignal) =>
+    get<BacktestResponse>(
+      '/decision/backtest',
+      {
+        confidence: p.confidence,
+        lookback_days: p.lookbackDays,
+        decision_hour: p.decisionHour,
+        basis: p.basis,
+      },
+      signal,
+    ),
 }

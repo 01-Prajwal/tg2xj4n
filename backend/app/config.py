@@ -23,10 +23,16 @@ DELIVERY_LAST_DAY = DECISION_LAST_DAY + timedelta(days=1)
 UK_TZ = "Europe/London"
 DAY_AHEAD_CUTOFF_HOUR = 11
 
+# Error bands for a decision are calibrated on errors already known at decision
+# time, over a trailing window of up to this many days. The snapshot therefore
+# also holds December 2025, so decisions early in January have history too.
+MAX_LOOKBACK_DAYS = 30
+HISTORY_FIRST_DAY = DECISION_FIRST_DAY - timedelta(days=MAX_LOOKBACK_DAYS + 1)
+
 # The horizon analysis goes up to 72h ahead, so fetch forecasts published from
-# a few days before the first delivery day up to the end of the last one.
+# a few days before the first history day up to the end of the last delivery day.
 MAX_HORIZON_HOURS = 72
-FORECAST_PUBLISH_FROM = datetime.combine(DELIVERY_FIRST_DAY, datetime.min.time(), UTC) - timedelta(
+FORECAST_PUBLISH_FROM = datetime.combine(HISTORY_FIRST_DAY, datetime.min.time(), UTC) - timedelta(
     hours=MAX_HORIZON_HOURS + 24
 )
 FORECAST_PUBLISH_TO = datetime.combine(
@@ -37,8 +43,8 @@ FORECAST_PUBLISH_TO = datetime.combine(
 DELIVERY_START_UTC = datetime.combine(DELIVERY_FIRST_DAY, datetime.min.time(), UTC)
 DELIVERY_END_UTC = datetime.combine(DELIVERY_LAST_DAY + timedelta(days=1), datetime.min.time(), UTC)
 
-# Actuals for the whole of January plus the last delivery day.
-ACTUALS_FIRST_DAY = DECISION_FIRST_DAY
+# Actuals for the history window, January, and the last delivery day.
+ACTUALS_FIRST_DAY = HISTORY_FIRST_DAY
 ACTUALS_LAST_DAY = DELIVERY_LAST_DAY
 
 

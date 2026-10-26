@@ -61,3 +61,12 @@ export function addDays(d: string, n: number): string {
   t.setUTCDate(t.getUTCDate() + n)
   return t.toISOString().slice(0, 10)
 }
+
+/** 464474 MWh -> "464 GWh" */
+export function fmtGWh(mwh: number | null | undefined): string {
+  if (mwh == null || Number.isNaN(mwh)) return DASH
+  return `${Math.round(mwh / 1000).toLocaleString('en-GB')} GWh`
+}
+
+const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: UK, hour: '2-digit', minute: '2-digit' })
+export const fmtTime = (t: string | number | Date) => timeFmt.format(toDate(t))

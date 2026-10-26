@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { api } from '../api/client'
-import type { Filters } from '../api/types'
+import type { DecisionParams, Filters } from '../api/types'
 
 // The data is a frozen snapshot, so responses never go stale.
 const STATIC = { staleTime: Infinity, placeholderData: keepPreviousData } as const
@@ -46,5 +46,19 @@ export const useVintages = (target: string | null, basis: Filters['basis']) =>
     queryKey: ['vintages', target, basis],
     queryFn: ({ signal }) => api.vintages(target!, basis, signal),
     enabled: target !== null,
+    ...STATIC,
+  })
+
+export const useDecision = (p: DecisionParams) =>
+  useQuery({
+    queryKey: ['decision', p],
+    queryFn: ({ signal }) => api.decision(p, signal),
+    ...STATIC,
+  })
+
+export const useBacktest = (p: Omit<DecisionParams, 'decisionTime'>, decisionHour: number) =>
+  useQuery({
+    queryKey: ['backtest', p.confidence, p.lookbackDays, p.basis, decisionHour],
+    queryFn: ({ signal }) => api.backtest({ ...p, decisionHour }, signal),
     ...STATIC,
   })

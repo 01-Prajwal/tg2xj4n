@@ -13,6 +13,8 @@ const ROUTES: [string, unknown][] = [
   ['/api/metrics/by-horizon', fx.byHorizon],
   ['/api/metrics', fx.metrics],
   ['/api/forecast-vintages', fx.vintages],
+  ['/api/decision/backtest', fx.backtest],
+  ['/api/decision', fx.decision],
 ]
 
 function mockApi() {
@@ -75,8 +77,9 @@ describe('App', () => {
     mockApi()
     renderApp()
     await screen.findByText(/over-estimated wind by/)
-    const [mainToggle] = screen.getAllByRole('button', { name: 'Show table' })
-    await userEvent.click(mainToggle!)
+    const mainCard = screen.getByRole('heading', { name: 'Wind generation: actual vs forecast' })
+      .closest('section')!
+    await userEvent.click(within(mainCard).getByRole('button', { name: 'Show table' }))
     expect(screen.getByRole('columnheader', { name: 'Reliable (P10)' })).toBeInTheDocument()
   })
 
@@ -86,6 +89,39 @@ describe('App', () => {
     )
     renderApp()
     expect(await screen.findByRole('alert')).toHaveTextContent('Snapshot incomplete')
+  })
+})
+
+describe("Plan tomorrow's purchase", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows the latest run and the purchase quantities at decision time', async () => {
+    mockApi()
+    renderApp()
+    expect(await screen.findByText(/is the run published at/)).toHaveTextContent(
+      'run published at 09:30',
+    )
+    expect(screen.getByText(/arrives after the 11:00 auction closes/)).toBeInTheDocument()
+    const tiles = screen.getByRole('region', { name: 'Purchase summary' })
+    expect(within(tiles).getByText('22 GWh')).toBeInTheDocument() // forecast
+    expect(within(tiles).getByText('14 GWh')).toBeInTheDocument() // count on
+    expect(within(tiles).getByText('8 GWh')).toBeInTheDocument() // extra cover
+    expect(screen.getByText(/89.4%/)).toBeInTheDocument() // backtest hit rate
+  })
+
+  it('hides hindsight until asked, and refetches on new settings', async () => {
+    const fetchSpy = mockApi()
+    renderApp()
+    await screen.findByText(/is the run published at/)
+    expect(screen.queryByText('What actually happened')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('Show what actually happened'))
+    expect(screen.getByText('What actually happened')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '95%' }))
+    await userEvent.selectOptions(screen.getByLabelText('Decision time (UK)'), '09:00')
+    const urls = fetchSpy.mock.calls.map(([u]) => String(u))
+    expect(urls.some((u) => u.includes('/api/decision?') && u.includes('confidence=0.95'))).toBe(true)
+    expect(urls.some((u) => u.includes('decision_time=2026-01-31T09%3A00%3A00Z'))).toBe(true)
   })
 })
 

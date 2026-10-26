@@ -480,3 +480,61 @@ tr.is-chosen td {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* Numbered page sections: 1 = plan a purchase, 2 = evaluate accuracy */
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.section-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+.section-head h2 {
+  font-size: 20px;
+}
+.section-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 650;
+  font-size: 14px;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  align-self: center;
+}
+.check input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+.backtest {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--wash);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.backtest strong {
+  color: var(--text-primary);
+}

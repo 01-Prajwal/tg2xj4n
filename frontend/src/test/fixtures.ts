@@ -117,3 +117,66 @@ export const vintages: VintagesResponse = {
     },
   ],
 }
+
+export const decision: import('../api/types').DecisionResponse = {
+  decision_time: '2026-01-31T11:00:00Z',
+  delivery_day: '2026-02-01',
+  delivery_start: '2026-02-01T00:00:00Z',
+  delivery_end: '2026-02-02T00:00:00Z',
+  run_publish_time: '2026-01-31T09:30:00Z',
+  next_run_publish_time: '2026-01-31T11:30:00Z',
+  expected_hours: 2,
+  hours: [
+    {
+      start_time: '2026-02-01T00:00:00Z',
+      forecast_mw: 10000,
+      lead_h: 14.5,
+      low_mw: 6000,
+      median_mw: 9000,
+      high_mw: 11000,
+      actual_mw: 7000,
+    },
+    {
+      start_time: '2026-02-01T01:00:00Z',
+      forecast_mw: 12000,
+      lead_h: 15.5,
+      low_mw: 8000,
+      median_mw: 11000,
+      high_mw: 13000,
+      actual_mw: 7500,
+    },
+  ],
+  runs: [
+    { publish_time: '2026-01-31T07:30:00Z', mean_forecast_mw: 10500, hours_covered: 2 },
+    { publish_time: '2026-01-31T09:30:00Z', mean_forecast_mw: 11000, hours_covered: 2 },
+  ],
+  error_model: {
+    n: 720,
+    window_start: '2026-01-01T11:00:00Z',
+    window_end: '2026-01-31T11:00:00Z',
+    confidence: 0.9,
+    low_mw: -4000,
+    median_mw: -1000,
+    high_mw: 1000,
+    bias_mw: -1300,
+    mae_mw: 1900,
+  },
+  totals: {
+    forecast_mwh: 22000,
+    count_on_mwh: 14000,
+    expected_mwh: 20000,
+    extra_cover_mwh: 8000,
+    actual_mwh: 14500,
+    hours_below_count_on: 1,
+  },
+}
+
+export const backtest: import('../api/types').BacktestResponse = {
+  confidence: 0.9,
+  lookback_days: 30,
+  decision_hour_uk: 11,
+  hours: 744,
+  hit_rate_pct: 89.4,
+  mean_extra_cover_mwh: 99900,
+  days: [],
+}

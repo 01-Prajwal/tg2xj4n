@@ -1,9 +1,18 @@
 # UK Wind Forecast Monitor
 
-A web app for a UK utility's day-ahead trading desk. It shows **the national wind
-forecast that was available when day-ahead purchases had to be made**, and measures
-**how accurate those forecasts were**, so buying decisions can account for the
-expected error.
+A web app for a UK utility's day-ahead trading desk. It covers the two needs in the
+brief, as two sections of the page:
+
+1. **Plan tomorrow's purchase: the latest forecast available at decision time.** Pick
+   a decision date and time. The app shows the most recent forecast run published by
+   then, tomorrow's hourly profile, how that forecast changed run by run, and when the
+   next run is due.
+2. **How accurate are the forecasts: quantified error to decide with.** The day-ahead
+   forecast is scored against actual output across the month. The same error is also
+   applied to each decision. Using only errors already known at decision time, the app
+   gives the wind to count on at a chosen confidence level and the extra cover to buy,
+   in GWh. A backtest over every January decision shows that the confidence levels
+   hold.
 
 Scope: national wind generation from Elexon BMRS only, for purchase decisions made in
 January 2026 (delivery days 2 Jan – 1 Feb 2026).
@@ -11,6 +20,17 @@ January 2026 (delivery days 2 Jan – 1 Feb 2026).
 **Live app:** https://tg2xj4n.vercel.app (API docs: https://tg2xj4n.vercel.app/docs)
 
 ## What the January data shows
+
+**Can you trust the bands?** The decision rule was replayed for all 31 January
+decisions at 11:00, calibrated each time on the previous 30 days of known errors.
+
+| Confidence | Hours with actual ≥ count-on line | Average extra cover |
+|---|---|---|
+| 80% | 77.8% | 75 GWh/day |
+| 90% | 89.4% | 100 GWh/day |
+| 95% | 93.5% | 123 GWh/day |
+
+**Accuracy over the month:**
 
 | Day-ahead forecast (11:00 D-1) | Value |
 |---|---|
@@ -22,6 +42,8 @@ January 2026 (delivery days 2 Jan – 1 Feb 2026).
 - In 1 hour in 10, wind came in more than 4.2 GW below the day-ahead forecast.
 - Accuracy degrades steadily with lead time: MAE is 1.68 GW for the latest forecast
   available before each hour and about 2.3 GW at 48 h ahead.
+- Worst single day: for 12 Jan, the desk would have been told to count on 362 GWh at
+  90%, but only 347 GWh arrived.
 - Misses are worst overnight (03:00–05:00 UK). One plausible cause is wind curtailment
   at low demand: actuals are metered output, while the forecast is of available
   output. This is unverified.
@@ -60,8 +82,8 @@ npm run dev
 ### Tests and checks
 
 ```bash
-cd backend && ruff check . && mypy app scripts && pytest       # 53 tests
-cd frontend && npm run lint && npm run typecheck && npm test   # 18 tests
+cd backend && ruff check . && mypy app scripts && pytest       # 69 tests
+cd frontend && npm run lint && npm run typecheck && npm test   # 20 tests
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of these on every
@@ -70,7 +92,8 @@ push, then builds the Docker image and smoke-tests it.
 ### Refreshing the data
 
 The app ships with a frozen snapshot of the Elexon data in `backend/data/`, because
-January 2026 is historical. To rebuild it:
+January 2026 is historical. It also includes December 2025, so that decisions early
+in January have 30 days of known forecast errors to calibrate on. To rebuild it:
 
 ```bash
 cd backend && python -m scripts.fetch_data
@@ -86,16 +109,18 @@ cd backend && python -m scripts.fetch_data
 | `backend/app/data/repository.py` | Loads the snapshot once per process, injected into routes with FastAPI `Depends` |
 | `backend/app/services/selection.py` | **Core logic**: picks the forecast that was available in time for each hour, and joins it to actuals |
 | `backend/app/services/metrics.py` | Accuracy measures: summary, by hour of day, by lead time, histogram, P10–P90 band |
+| `backend/app/services/decision.py` | **Decision support**: latest run at decision time, error bands learned only from errors known then, GWh to count on and extra cover, backtest |
 | `backend/app/api/routes.py` | HTTP layer: query validation, calls to services, response shaping |
 | `backend/app/schemas.py` | Pydantic response models: the JSON contract with the frontend |
 | `backend/app/main.py` | App factory: CORS, error handling, serving the built frontend |
 | `backend/scripts/fetch_data.py` | Command-line tool that downloads the snapshot |
-| `backend/data/` | The snapshot: 1,536 half-hourly actuals and 20,440 forecast rows from 280 runs |
+| `backend/data/` | The snapshot, 1 Dec 2025 – 1 Feb 2026: 3,024 half-hourly actuals and 39,128 forecast rows from 536 runs |
 | `backend/tests/` | Unit tests (selection, metrics, client, snapshot), API tests on a synthetic snapshot, checks against the real data |
 | `frontend/src/App.tsx` | Page layout; holds filter and drill-down state |
 | `frontend/src/api/` | Typed API client and TypeScript copies of the response schemas |
 | `frontend/src/hooks/` | TanStack Query hooks (cached, keep previous data while refetching), chart/table toggle |
-| `frontend/src/components/` | Filters, headline and stat tiles, main chart, analysis tabs, forecast-history drill-down |
+| `frontend/src/components/DecisionPanel.tsx` | Section 1, "Plan tomorrow's purchase": decision settings, latest-run summary, GWh tiles, hourly chart, run-by-run changes, backtest result |
+| `frontend/src/components/` (others) | Section 2: filters, headline and stat tiles, main chart, analysis tabs, forecast-history drill-down |
 | `frontend/src/lib/` | Formatting (UK time, GW), chart theme and tick helpers, date presets |
 | `api/index.py` | Vercel serverless entry point that imports the FastAPI app |
 | `vercel.json` | Vercel build: static frontend, Python function, `/api` rewrites |
@@ -125,7 +150,24 @@ Forecasts are hourly and actuals are half-hourly. By default the forecast for HH
 compared with the actual for the half-hour starting at HH:00, with an option to use
 the hourly average instead.
 
-### Accuracy measures
+### Decision support (section 1)
+
+For a decision at time *t* on day D-1:
+
+- **Latest forecast:** the most recent forecast run published at or before *t*. Its
+  hourly values for delivery day D form tomorrow's profile. Every earlier run for D is
+  listed, so the desk can see how the forecast has moved.
+- **Error model:** quantiles of the day-ahead error (actual − forecast) over the
+  previous *N* days (7, 14 or 30), using only hours whose actual was already
+  published by *t*. Nothing from the future is used.
+- **Turning error into a purchase decision:** at confidence *c*, the wind to count on
+  each hour is the forecast plus the (1 − *c*) error quantile. Summed over the day,
+  this gives the GWh of wind to rely on. The extra cover to buy, beyond a position
+  based on the forecast, is the forecast total minus that figure.
+- **Backtest:** the same rule replayed for every January decision. At 90% confidence,
+  actual wind landed at or above the line in 89.4% of hours.
+
+### Accuracy measures (section 2)
 
 Error is defined as **actual − forecast**. The app reports:
 
@@ -135,7 +177,7 @@ Error is defined as **actual − forecast**. The app reports:
 - P10, P50 and P90 of the error, and the worst misses each way
 - error by UK hour of day, and error at every lead time from 0 to 48 h
 - **reliable wind** = forecast + P10 error: the output the desk can count on 9 times
-  in 10. The band is in-sample: it is built from the same period's errors.
+  in 10. The band is in-sample: it is built from the same period's errors. Section 1's bands are not.
 
 ### Architecture
 

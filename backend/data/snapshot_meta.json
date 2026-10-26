@@ -1,11 +1,11 @@
 {
-  "fetched_at": "2026-10-26T06:38:20+00:00",
+  "fetched_at": "2026-10-26T07:04:33+00:00",
   "source": "https://data.elexon.co.uk/bmrs/api/v1",
-  "actuals_rows": 1536,
-  "actuals_from": "2026-01-01T00:00:00+00:00",
+  "actuals_rows": 3024,
+  "actuals_from": "2025-12-01T00:00:00+00:00",
   "actuals_to": "2026-02-01T23:30:00+00:00",
-  "forecast_rows": 20440,
-  "forecast_runs": 280,
-  "forecast_publish_from": "2025-12-29T02:30:00+00:00",
+  "forecast_rows": 39128,
+  "forecast_runs": 536,
+  "forecast_publish_from": "2025-11-27T02:30:00+00:00",
   "forecast_publish_to": "2026-02-01T22:30:00+00:00"
 }

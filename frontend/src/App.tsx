@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type { Filters } from './api/types'
 import { AnalysisTabs } from './components/AnalysisTabs'
 import { Controls } from './components/Controls'
+import { DecisionPanel } from './components/DecisionPanel'
 import { MainChart } from './components/MainChart'
 import { Headline, StatTiles } from './components/Summary'
 import { VintagesPanel } from './components/VintagesPanel'
@@ -65,8 +66,8 @@ export default function App() {
           <div className="eyebrow">Day-ahead trading · Pilot</div>
           <h1>UK Wind Forecast Monitor</h1>
           <p className="subtitle">
-            What the national wind forecast said when day-ahead purchases had to be made, and how
-            far off it turned out to be. Delivery days covered by decisions made in January 2026.
+            For day-ahead purchase decisions made in January 2026: the latest national wind
+            forecast available when you buy, and how far to trust it.
           </p>
         </div>
         <div className="meta">
@@ -76,6 +77,19 @@ export default function App() {
           {health.data.snapshot.forecast_runs} forecast runs
         </div>
       </header>
+
+      <DecisionPanel basis={filters.basis} />
+
+      <div className="section-head">
+        <span className="section-num">2</span>
+        <div>
+          <h2>How accurate are the forecasts?</h2>
+          <p className="card-sub">
+            The day-ahead forecast scored against actual output, hour by hour, across the whole
+            month.
+          </p>
+        </div>
+      </div>
 
       <Controls filters={filters} defaultWindow={health.data.default_window} onChange={setFilters} />
 
@@ -116,7 +130,8 @@ export default function App() {
 
       <footer className="footer">
         <span>
-          Error = actual − forecast. Bands use this period&apos;s own error spread (in-sample).
+          Error = actual − forecast. Section 1 bands use only errors known at decision time;
+          section 2 bands use the selected period&apos;s own errors (in-sample).
         </span>
         <span>
           Contains BMRS data © Elexon Limited copyright and database right 2026.

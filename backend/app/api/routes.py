@@ -14,13 +14,17 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app import schemas
 from app.config import (
     DAY_AHEAD_CUTOFF_HOUR,
+    DECISION_FIRST_DAY,
+    DECISION_LAST_DAY,
     DELIVERY_END_UTC,
     DELIVERY_START_UTC,
     MAX_HORIZON_HOURS,
+    MAX_LOOKBACK_DAYS,
+    UK_TZ,
 )
 from app.data.repository import get_snapshot
 from app.data.snapshot import Snapshot
-from app.services import metrics
+from app.services import decision, metrics
 from app.services.selection import (
     ActualBasis,
     Comparison,
@@ -224,4 +228,86 @@ def forecast_vintages(
         day_ahead_cutoff=cutoff,
         day_ahead_choice=choice["publish_time"].iloc[0] if not choice.empty else None,
         vintages=[schemas.Vintage(**r) for r in _records(table)],
+    )
+
+
+# --- Decision support -----------------------------------------------------------
+
+ConfidenceQ = Annotated[
+    float, Query(ge=0.5, le=0.99, description="Probability that actual wind is >= count-on line")
+]
+LookbackQ = Annotated[
+    int, Query(ge=3, le=MAX_LOOKBACK_DAYS, description="Days of known errors to calibrate on")
+]
+
+
+def _default_decision_time() -> datetime:
+    local = pd.Timestamp(datetime.combine(DECISION_LAST_DAY, datetime.min.time()))
+    local = local.replace(hour=DAY_AHEAD_CUTOFF_HOUR).tz_localize(UK_TZ)
+    return local.tz_convert("UTC").to_pydatetime()
+
+
+@router.get("/decision", response_model=schemas.DecisionResponse)
+def decision_support(
+    snapshot: SnapshotDep,
+    decision_time: Annotated[
+        datetime | None,
+        Query(description="When the purchase decision is made (UTC). Default: 31 Jan 11:00"),
+    ] = None,
+    confidence: ConfidenceQ = 0.9,
+    lookback_days: LookbackQ = 30,
+    basis: ActualBasis = ActualBasis.POINT,
+) -> schemas.DecisionResponse:
+    """What the desk sees at decision time: latest forecast for tomorrow, plus error bands."""
+    t = _utc(decision_time) if decision_time else _default_decision_time()
+    uk_day = pd.Timestamp(t).tz_convert(UK_TZ).date()
+    if not DECISION_FIRST_DAY <= uk_day <= DECISION_LAST_DAY:
+        raise HTTPException(
+            status_code=422,
+            detail=f"decision_time must fall on a UK day between {DECISION_FIRST_DAY} "
+            f"and {DECISION_LAST_DAY}",
+        )
+    view = decision.decision_view(
+        snapshot.forecasts, snapshot.actuals, t, confidence, lookback_days, basis
+    )
+    m = view.model
+    return schemas.DecisionResponse(
+        decision_time=view.decision_time,
+        delivery_day=view.delivery_day,
+        delivery_start=view.delivery_start,
+        delivery_end=view.delivery_end,
+        run_publish_time=view.run_publish_time,
+        next_run_publish_time=view.next_run_publish_time,
+        expected_hours=view.expected_hours,
+        hours=[schemas.DecisionHour(**r) for r in _records(view.hours)],
+        runs=[schemas.DecisionRun(**r) for r in _records(view.runs)],
+        error_model=schemas.ErrorModel(**vars(m)),
+        totals=schemas.EnergyTotals(**vars(decision.energy_totals(view.hours))),
+    )
+
+
+@router.get("/decision/backtest", response_model=schemas.BacktestResponse)
+def decision_backtest(
+    snapshot: SnapshotDep,
+    confidence: ConfidenceQ = 0.9,
+    lookback_days: LookbackQ = 30,
+    decision_hour: Annotated[int, Query(ge=0, le=23, description="UK hour of decision")] = 11,
+    basis: ActualBasis = ActualBasis.POINT,
+) -> schemas.BacktestResponse:
+    """Replay the decision rule on every January decision day and score the bands."""
+    days = pd.date_range(DECISION_FIRST_DAY, DECISION_LAST_DAY, freq="D").date.tolist()
+    table = decision.backtest(
+        snapshot.forecasts, snapshot.actuals, days, decision_hour, confidence, lookback_days, basis
+    )
+    hours = int(table["hours"].sum())
+    return schemas.BacktestResponse(
+        confidence=confidence,
+        lookback_days=lookback_days,
+        decision_hour_uk=decision_hour,
+        hours=hours,
+        hit_rate_pct=100 * table["hours_above_count_on"].sum() / hours if hours else None,
+        mean_extra_cover_mwh=(
+            float(cover.mean()) if (cover := table["extra_cover_mwh"]).notna().any() else None
+        ),
+        days=[schemas.BacktestDay(**r) for r in _records(table)],
     )

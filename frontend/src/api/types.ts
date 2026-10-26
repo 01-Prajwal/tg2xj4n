@@ -133,3 +133,82 @@ export interface Filters {
   horizonH: number
   basis: ActualBasis
 }
+
+// --- Decision support (GET /api/decision, /api/decision/backtest) ---------------
+
+export interface DecisionHour {
+  start_time: string
+  forecast_mw: number
+  lead_h: number
+  low_mw: number | null
+  median_mw: number | null
+  high_mw: number | null
+  actual_mw: number | null // hindsight only
+}
+
+export interface DecisionRun {
+  publish_time: string
+  mean_forecast_mw: number
+  hours_covered: number
+}
+
+export interface ErrorModel {
+  n: number
+  window_start: string
+  window_end: string
+  confidence: number
+  low_mw: number | null
+  median_mw: number | null
+  high_mw: number | null
+  bias_mw: number | null
+  mae_mw: number | null
+}
+
+export interface EnergyTotals {
+  forecast_mwh: number
+  count_on_mwh: number | null
+  expected_mwh: number | null
+  extra_cover_mwh: number | null
+  actual_mwh: number | null
+  hours_below_count_on: number | null
+}
+
+export interface DecisionResponse {
+  decision_time: string
+  delivery_day: string
+  delivery_start: string
+  delivery_end: string
+  run_publish_time: string | null
+  next_run_publish_time: string | null
+  expected_hours: number
+  hours: DecisionHour[]
+  runs: DecisionRun[]
+  error_model: ErrorModel
+  totals: EnergyTotals
+}
+
+export interface BacktestResponse {
+  confidence: number
+  lookback_days: number
+  decision_hour_uk: number
+  hours: number
+  hit_rate_pct: number | null
+  mean_extra_cover_mwh: number | null
+  days: {
+    decision_day: string
+    delivery_day: string
+    hours: number
+    hours_above_count_on: number
+    forecast_mwh: number
+    count_on_mwh: number | null
+    actual_mwh: number | null
+    extra_cover_mwh: number | null
+  }[]
+}
+
+export interface DecisionParams {
+  decisionTime: string // ISO UTC
+  confidence: number
+  lookbackDays: number
+  basis: ActualBasis
+}
