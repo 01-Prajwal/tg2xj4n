@@ -8,7 +8,7 @@ expected error.
 Scope: national wind generation from Elexon BMRS only, for purchase decisions made in
 January 2026 (delivery days 2 Jan – 1 Feb 2026).
 
-**Live app:** _add the Vercel URL here after deploying (see [Deployment](#deployment))_
+**Live app:** https://tg2xj4n.vercel.app (API docs: https://tg2xj4n.vercel.app/docs)
 
 ## What the January data shows
 
@@ -159,11 +159,10 @@ repository ──► snapshot files (backend/data)  ◄── scripts/fetch_data
 
 **Vercel** (recommended; free):
 
-1. Push this repo to GitHub and import it at https://vercel.com/new, or run
-   `npx vercel` from the repo root.
+1. From the repo root, run `npx vercel login`, then `npx vercel deploy --prod`.
+   Alternatively, import the GitHub repo at https://vercel.com/new.
 2. No settings are needed: `vercel.json` builds the frontend and deploys
    `api/index.py` as a Python function using `requirements.txt`.
-3. Add the URL to the top of this README.
 
 **Heroku, or any container host:** deploy the `Dockerfile`. The container listens on
 `$PORT`.
