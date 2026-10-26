@@ -1,3 +1,4 @@
+import { ArrowDownRight, BadgeCheck, CalendarClock, CirclePlus, Eye, ShieldCheck, Zap } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
   Area,
@@ -26,6 +27,7 @@ import {
   tickGW,
 } from '../lib/format'
 import { Legend, TooltipBox } from './chartKit'
+import { StatGrid, type StatSpec } from './StatGrid'
 
 const CONFIDENCES = [0.5, 0.8, 0.9, 0.95] as const
 const LOOKBACKS = [7, 14, 30] as const
@@ -56,18 +58,7 @@ export function DecisionPanel({ basis }: Props) {
   const pct = `${Math.round(confidence * 100)}%`
 
   return (
-    <section className="section" aria-labelledby="plan-title">
-      <div className="section-head">
-        <span className="section-num">1</span>
-        <div>
-          <h2 id="plan-title">Plan tomorrow&apos;s purchase</h2>
-          <p className="card-sub">
-            What the desk sees at decision time: the latest wind forecast for the next day, and
-            how much of it to rely on, based only on forecast errors already known then.
-          </p>
-        </div>
-      </div>
-
+    <section className="section" aria-label="Plan tomorrow's purchase">
       <div className="filters" aria-label="Decision settings">
         <div className="field">
           <span className="field-label">Decision made on</span>
@@ -148,12 +139,15 @@ export function DecisionPanel({ basis }: Props) {
           </div>
           {backtest.data && (
             <p className="backtest" aria-live="polite">
+              <BadgeCheck size={20} aria-hidden />
+              <span>
               <strong>Is the {pct} line trustworthy?</strong> Replaying this rule for all{' '}
               {backtest.data.days.length} January decisions at {time.slice(0, 2)}:00, actual wind
               came in at or above it in{' '}
               <strong>{fmtPct(backtest.data.hit_rate_pct)}</strong> of {backtest.data.hours} hours
               (target {pct}). Average extra cover: {fmtGWh(backtest.data.mean_extra_cover_mwh)}{' '}
               a day.
+              </span>
             </p>
           )}
         </div>
@@ -164,13 +158,21 @@ export function DecisionPanel({ basis }: Props) {
 
 function LatestForecastLine({ d }: { d: DecisionResponse }) {
   if (!d.run_publish_time) {
-    return <p className="headline">No forecast had been published for this day yet.</p>
+    return (
+      <section className="headline">
+        <p>No forecast had been published for this day yet.</p>
+      </section>
+    )
   }
   const ageH = (Date.parse(d.decision_time) - Date.parse(d.run_publish_time)) / 36e5
   const cutoff = Date.parse(`${d.decision_time.slice(0, 10)}T${CUTOFF}:00Z`)
   const next = d.next_run_publish_time ? Date.parse(d.next_run_publish_time) : null
   return (
     <section className="headline" aria-live="polite">
+      <span className="headline-icon" aria-hidden>
+        <CalendarClock size={20} />
+      </span>
+      <div>
       <p>
         At <strong>{fmtDateTime(d.decision_time)}</strong>, the latest wind forecast for{' '}
         <strong>{fmtLongDay(d.delivery_start)}</strong> is the run published at{' '}
@@ -185,6 +187,7 @@ function LatestForecastLine({ d }: { d: DecisionResponse }) {
             : `The next run is due at ${fmtTime(next)}.`}{' '}
         {d.runs.length} runs for this day had been published by then.
       </p>
+      </div>
     </section>
   )
 }
@@ -193,21 +196,27 @@ function DecisionTiles({ d, pct, reveal }: { d: DecisionResponse; pct: string; r
   const t = d.totals
   const m = d.error_model
   const avg = d.hours.length ? t.forecast_mwh / d.hours.length : null
-  const tiles = [
+  const tiles: StatSpec[] = [
     {
       label: 'Forecast wind tomorrow',
       value: fmtGWh(t.forecast_mwh),
       note: `Average ${fmtGW(avg)} over ${d.hours.length} h`,
+      icon: Zap,
+      tone: 'orange',
     },
     {
       label: `Wind to count on (${pct})`,
       value: fmtGWh(t.count_on_mwh),
       note: `Actual wind beats this ${pct} of the time`,
+      icon: ShieldCheck,
+      tone: 'green',
     },
     {
       label: 'Extra cover to buy',
       value: fmtGWh(t.extra_cover_mwh),
       note: 'Beyond a position based on the forecast',
+      icon: CirclePlus,
+      tone: 'blue',
     },
     {
       label: 'Recent forecast error',
@@ -215,6 +224,8 @@ function DecisionTiles({ d, pct, reveal }: { d: DecisionResponse; pct: string; r
       note: m.n
         ? `Bias over ${m.n} known hours · MAE ${fmtGW(m.mae_mw, 2)}`
         : 'No known errors in this window yet',
+      icon: ArrowDownRight,
+      tone: 'violet',
     },
   ]
   if (reveal) {
@@ -225,19 +236,11 @@ function DecisionTiles({ d, pct, reveal }: { d: DecisionResponse; pct: string; r
         t.hours_below_count_on == null
           ? 'Hindsight: not known at decision time'
           : `Below the ${pct} line in ${t.hours_below_count_on} of ${d.hours.length} h`,
+      icon: Eye,
+      tone: 'slate',
     })
   }
-  return (
-    <section className="tiles" aria-label="Purchase summary">
-      {tiles.map((x) => (
-        <div className="tile" key={x.label}>
-          <span className="tile-label">{x.label}</span>
-          <span className="tile-value">{x.value}</span>
-          <span className="tile-note">{x.note}</span>
-        </div>
-      ))}
-    </section>
-  )
+  return <StatGrid tiles={tiles} label="Purchase summary" />
 }
 
 interface Row {

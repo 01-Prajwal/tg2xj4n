@@ -7,3 +7,8 @@ class ResizeObserverStub {
   disconnect() {}
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
+
+// The app keeps the selected view in the URL hash; start every test on the default view.
+beforeEach(() => {
+  window.history.replaceState(null, '', '/')
+})

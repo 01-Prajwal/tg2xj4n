@@ -27,6 +27,10 @@ function mockApi() {
   })
 }
 
+async function openAccuracy() {
+  await userEvent.click(await screen.findByRole('tab', { name: /Forecast accuracy/ }))
+}
+
 function renderApp() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
@@ -42,6 +46,7 @@ describe('App', () => {
   it('shows the headline and stat tiles for the default day-ahead view', async () => {
     mockApi()
     renderApp()
+    await openAccuracy()
     expect(await screen.findByText(/over-estimated wind by/)).toBeInTheDocument()
     const tiles = screen.getByRole('region', { name: 'Accuracy summary' })
     expect(within(tiles).getByText('2.00 GW')).toBeInTheDocument() // MAE
@@ -52,6 +57,7 @@ describe('App', () => {
   it('reveals the lead-time slider and refetches in horizon mode', async () => {
     const fetchSpy = mockApi()
     renderApp()
+    await openAccuracy()
     await screen.findByText(/over-estimated wind by/)
     expect(screen.queryByLabelText('Published at least')).not.toBeInTheDocument()
 
@@ -76,11 +82,27 @@ describe('App', () => {
   it('switches a chart to its table view', async () => {
     mockApi()
     renderApp()
+    await openAccuracy()
     await screen.findByText(/over-estimated wind by/)
     const mainCard = screen.getByRole('heading', { name: 'Wind generation: actual vs forecast' })
       .closest('section')!
     await userEvent.click(within(mainCard).getByRole('button', { name: 'Show table' }))
     expect(screen.getByRole('columnheader', { name: 'Reliable (P10)' })).toBeInTheDocument()
+  })
+
+  it('opens on the plan view and switches views with the tabs', async () => {
+    mockApi()
+    renderApp()
+    const plan = await screen.findByRole('tab', { name: /Plan tomorrow/ })
+    expect(plan).toHaveAttribute('aria-selected', 'true')
+    expect(await screen.findByText(/is the run published at/)).toBeVisible()
+    await openAccuracy()
+    expect(screen.getByRole('tab', { name: /Forecast accuracy/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(window.location.hash).toBe('#accuracy')
+    expect(screen.queryByText(/is the run published at/)).not.toBeVisible()
   })
 
   it('reports an unavailable API', async () => {
