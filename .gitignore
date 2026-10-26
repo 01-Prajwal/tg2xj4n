@@ -19,3 +19,6 @@ frontend/dist/
 
 # Deploy / local tooling
 .vercel/
+
+.vercel
+.env*
