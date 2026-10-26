@@ -1,0 +1,8 @@
+# Runtime dependencies for the API (used by the Docker image and Vercel's Python
+# runtime). Keep in sync with [project.dependencies] in backend/pyproject.toml;
+# backend/tests/test_packaging.py checks this.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pandas>=2.2
+httpx>=0.27
+pydantic-settings>=2.4
