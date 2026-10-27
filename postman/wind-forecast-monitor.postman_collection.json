@@ -1,0 +1,806 @@
+{
+  "info": {
+    "name": "Wind Forecast Monitor API",
+    "description": "Endpoints of the UK wind forecast monitor. Set baseUrl to http://127.0.0.1:8000 (local) or https://tg2xj4n.vercel.app (live).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "liveUrl",
+      "value": "https://tg2xj4n.vercel.app"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health",
+      "item": [
+        {
+          "name": "Health check",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().snapshot.forecast_runs).to.eql(536);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Snapshot info, default window, max lead time and the 11:00 cutoff. The frontend calls this first.",
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Plan tomorrow (decision support)",
+      "item": [
+        {
+          "name": "Decision - default (31 Jan 11:00)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().delivery_day).to.eql(\"2026-02-01\");",
+                  "  pm.expect(pm.response.json().run_publish_time).to.eql(\"2026-01-31T09:30:00Z\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Point 1 + 2 for the last January decision: latest run (09:30), next run, tomorrow's 24 hours with the count-on line, error model and GWh totals.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Decision - 15 Jan 11:00, 90%, 30 days",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  const d = pm.response.json();",
+                  "  pm.expect(d.run_publish_time).to.eql(\"2026-01-15T09:30:00Z\");",
+                  "  pm.expect(d.next_run_publish_time).to.eql(\"2026-01-15T12:25:00Z\");",
+                  "  pm.expect(d.error_model.n).to.eql(720);",
+                  "  pm.expect(d.hours.length).to.eql(24);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Worked example: 09:30 run, 191 GWh forecast, 92 GWh count on, ~100 GWh extra cover.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision?decision_time=2026-01-15T11:00:00Z&confidence=0.9&lookback_days=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": [
+                {
+                  "key": "decision_time",
+                  "value": "2026-01-15T11:00:00Z"
+                },
+                {
+                  "key": "confidence",
+                  "value": "0.9"
+                },
+                {
+                  "key": "lookback_days",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decision - 15 Jan 08:00 (earlier run)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().run_publish_time).to.eql(\"2026-01-15T07:30:00Z\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Same delivery day, earlier decision: the latest run is now 07:30, the next is 09:30.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision?decision_time=2026-01-15T08:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": [
+                {
+                  "key": "decision_time",
+                  "value": "2026-01-15T08:00:00Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Decision - 95% confidence, 14-day lookback",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Higher confidence means a lower count-on line and more extra cover.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision?decision_time=2026-01-15T11:00:00Z&confidence=0.95&lookback_days=14",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": [
+                {
+                  "key": "decision_time",
+                  "value": "2026-01-15T11:00:00Z"
+                },
+                {
+                  "key": "confidence",
+                  "value": "0.95"
+                },
+                {
+                  "key": "lookback_days",
+                  "value": "14"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Backtest - 90%",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.hours).to.eql(744);",
+                  "  pm.expect(b.days.length).to.eql(31);",
+                  "  pm.expect(b.hit_rate_pct).to.be.within(85, 95);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Replays all 31 January decisions. Hit rate should be ~89.4%.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision/backtest?confidence=0.9&lookback_days=30&decision_hour=11",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision",
+                "backtest"
+              ],
+              "query": [
+                {
+                  "key": "confidence",
+                  "value": "0.9"
+                },
+                {
+                  "key": "lookback_days",
+                  "value": "30"
+                },
+                {
+                  "key": "decision_hour",
+                  "value": "11"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Backtest - 80%",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Hit rate should be ~77.8%.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision/backtest?confidence=0.8&lookback_days=30&decision_hour=11",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision",
+                "backtest"
+              ],
+              "query": [
+                {
+                  "key": "confidence",
+                  "value": "0.8"
+                },
+                {
+                  "key": "lookback_days",
+                  "value": "30"
+                },
+                {
+                  "key": "decision_hour",
+                  "value": "11"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Forecast accuracy",
+      "item": [
+        {
+          "name": "Series - day-ahead, all of January",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().coverage.matched_hours).to.eql(744);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "744 hourly points: actual, chosen forecast, error, lead time and the P10-P90 band.",
+            "url": {
+              "raw": "{{baseUrl}}/api/series?mode=dayahead&basis=point",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "dayahead"
+                },
+                {
+                  "key": "basis",
+                  "value": "point"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Series - one day (16 Jan)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().points.length).to.eql(24);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "24 points. 16 Jan 00:00: forecast 7472, actual 7477, error +5.",
+            "url": {
+              "raw": "{{baseUrl}}/api/series?from=2026-01-16T00:00:00Z&to=2026-01-17T00:00:00Z&mode=dayahead",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-16T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-17T00:00:00Z"
+                },
+                {
+                  "key": "mode",
+                  "value": "dayahead"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Series - fixed lead time 24h",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().query.horizon_h).to.eql(24);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Latest forecast published at least 24 hours before each hour.",
+            "url": {
+              "raw": "{{baseUrl}}/api/series?mode=horizon&h=24",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "horizon"
+                },
+                {
+                  "key": "h",
+                  "value": "24"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Metrics - day-ahead summary + histogram",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().summary.n).to.eql(744);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "MAE ~1996 MW, bias ~-1728 MW, P10 ~-4184 MW, histogram in 500 MW buckets.",
+            "url": {
+              "raw": "{{baseUrl}}/api/metrics?mode=dayahead&bin_width=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "dayahead"
+                },
+                {
+                  "key": "bin_width",
+                  "value": "500"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Metrics - by UK hour of day",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().hours.length).to.eql(24);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "24 rows; worst around 03:00-06:00 UK.",
+            "url": {
+              "raw": "{{baseUrl}}/api/metrics/by-hour?mode=dayahead",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "by-hour"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "dayahead"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Metrics - by lead time (0-48h)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().horizons.length).to.eql(49);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Accuracy vs lead time: MAE ~1680 MW at 0h rising to ~2300 MW at 48h.",
+            "url": {
+              "raw": "{{baseUrl}}/api/metrics/by-horizon?max_h=48&step=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "metrics",
+                "by-horizon"
+              ],
+              "query": [
+                {
+                  "key": "max_h",
+                  "value": "48"
+                },
+                {
+                  "key": "step",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Forecast vintages - 16 Jan 00:00",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Response matches the January data\", () => {",
+                  "  pm.expect(pm.response.json().day_ahead_choice).to.eql(\"2026-01-15T09:30:00Z\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Every forecast made for one hour, flagged before/after the 11:00 cutoff, and which one the day-ahead rule picks (09:30 on 15 Jan).",
+            "url": {
+              "raw": "{{baseUrl}}/api/forecast-vintages?target=2026-01-16T00:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "forecast-vintages"
+              ],
+              "query": [
+                {
+                  "key": "target",
+                  "value": "2026-01-16T00:00:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Error cases (validation)",
+      "item": [
+        {
+          "name": "422 - 'from' after 'to'",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Rejected with: 'from' must be before 'to'.",
+            "url": {
+              "raw": "{{baseUrl}}/api/series?from=2026-01-20T00:00:00Z&to=2026-01-10T00:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-20T00:00:00Z"
+                },
+                {
+                  "key": "to",
+                  "value": "2026-01-10T00:00:00Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "422 - lead time over 72h",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "h must be between 0 and 72.",
+            "url": {
+              "raw": "{{baseUrl}}/api/series?mode=horizon&h=80",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "series"
+              ],
+              "query": [
+                {
+                  "key": "mode",
+                  "value": "horizon"
+                },
+                {
+                  "key": "h",
+                  "value": "80"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "422 - confidence below 0.5",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "confidence must be between 0.5 and 0.99.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision?confidence=0.3",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": [
+                {
+                  "key": "confidence",
+                  "value": "0.3"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "422 - decision outside January",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Only decisions made on UK days 1-31 Jan 2026 are in scope.",
+            "url": {
+              "raw": "{{baseUrl}}/api/decision?decision_time=2026-03-15T11:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "decision"
+              ],
+              "query": [
+                {
+                  "key": "decision_time",
+                  "value": "2026-03-15T11:00:00Z"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "404 - hour with no data",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "No forecasts or actuals exist for that hour.",
+            "url": {
+              "raw": "{{baseUrl}}/api/forecast-vintages?target=2024-01-01T00:00:00Z",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "forecast-vintages"
+              ],
+              "query": [
+                {
+                  "key": "target",
+                  "value": "2024-01-01T00:00:00Z"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -125,6 +125,7 @@ cd backend && python -m scripts.fetch_data
 | `api/index.py` | Vercel serverless entry point that imports the FastAPI app |
 | `vercel.json` | Vercel build: static frontend, Python function, `/api` rewrites |
 | `Dockerfile`, `docker-compose.yml` | Multi-stage image: Node builds the frontend, Python serves everything |
+| `postman/` | Postman collection: every endpoint with example queries, error cases and response tests (`baseUrl` defaults to http://127.0.0.1:8000) |
 | `requirements.txt` | API runtime dependencies for Docker and Vercel (a test keeps it in sync with `pyproject.toml`) |
 
 ## Design
