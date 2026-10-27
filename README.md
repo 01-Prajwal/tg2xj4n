@@ -42,8 +42,8 @@ decisions at 11:00, calibrated each time on the previous 30 days of known errors
 - In 1 hour in 10, wind came in more than 4.2 GW below the day-ahead forecast.
 - Accuracy degrades steadily with lead time: MAE is 1.68 GW for the latest forecast
   available before each hour and about 2.3 GW at 48 h ahead.
-- Worst single day: for 12 Jan, the desk would have been told to count on 362 GWh at
-  90%, but only 347 GWh arrived.
+- Worst single day: for 28 Jan, the desk would have been told to count on 170 GWh at
+  90%, but only 139 GWh arrived, and every hour came in below the line.
 - Misses are worst overnight (03:00–05:00 UK). One plausible cause is wind curtailment
   at low demand: actuals are metered output, while the forecast is of available
   output. This is unverified.
