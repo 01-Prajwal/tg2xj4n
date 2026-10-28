@@ -5,7 +5,6 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -29,8 +28,6 @@ interface Row {
 interface Props {
   data: SeriesResponse
   loading: boolean
-  selected: string | null
-  onSelect: (startTime: string) => void
 }
 
 function ChartTooltip({ active, payload }: { active?: boolean; payload?: { payload: Row }[] }) {
@@ -48,18 +45,12 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { paylo
           ? [{ label: 'Reliable (P10)', value: fmtGW(p.reliable_mw, 2), color: 'var(--band)' }]
           : []),
       ]}
-      foot={
-        <>
-          Forecast published {fmtDateTime(p.publish_time)} ({fmtHours(p.lead_h)} ahead)
-          <br />
-          Click to see every forecast for this hour
-        </>
-      }
+      foot={<>Forecast published {fmtDateTime(p.publish_time)} ({fmtHours(p.lead_h)} ahead)</>}
     />
   )
 }
 
-export function MainChart({ data, loading, selected, onSelect }: Props) {
+export function MainChart({ data, loading }: Props) {
   const [asTable, toggle] = useTableToggle()
   const rows = useMemo<Row[]>(
     () =>
@@ -72,7 +63,6 @@ export function MainChart({ data, loading, selected, onSelect }: Props) {
       })),
     [data.points],
   )
-  const selectedT = selected ? Date.parse(selected) : null
   // Daily ticks at UK midnight (= UTC in January).
   const ticks = useMemo(
     () => rows.filter((r) => new Date(r.t).getUTCHours() === 0).map((r) => r.t),
@@ -110,16 +100,7 @@ export function MainChart({ data, loading, selected, onSelect }: Props) {
       ) : (
         <div style={{ height: 380 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={rows}
-              margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
-              onClick={(state) => {
-                const idx = state?.activeIndex
-                const row = idx != null ? rows[Number(idx)] : undefined
-                if (row) onSelect(row.p.start_time)
-              }}
-              style={{ cursor: 'pointer' }}
-            >
+            <ComposedChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
               <CartesianGrid stroke={GRID_STROKE} vertical={false} />
               <XAxis
                 dataKey="t"
@@ -179,9 +160,6 @@ export function MainChart({ data, loading, selected, onSelect }: Props) {
                 activeDot={{ r: 4, stroke: 'var(--surface)', strokeWidth: 2 }}
                 isAnimationActive={false}
               />
-              {selectedT != null && (
-                <ReferenceLine x={selectedT} stroke="var(--text-secondary)" strokeWidth={1} />
-              )}
               <Brush
                 dataKey="t"
                 height={26}

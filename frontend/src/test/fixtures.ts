@@ -1,11 +1,8 @@
 import type {
-  ByHorizonResponse,
-  ByHourResponse,
   Health,
   MetricsResponse,
   QueryEcho,
   SeriesResponse,
-  VintagesResponse,
 } from '../api/types'
 
 const window = { start: '2026-01-02T00:00:00Z', end: '2026-02-02T00:00:00Z' }
@@ -73,48 +70,6 @@ export const metrics: MetricsResponse = {
     { lo_mw: -3000, hi_mw: -2500, count: 1 },
     { lo_mw: -2500, hi_mw: -2000, count: 0 },
     { lo_mw: -1500, hi_mw: -1000, count: 1 },
-  ],
-}
-
-export const byHour: ByHourResponse = {
-  query,
-  hours: Array.from({ length: 24 }, (_, hour) => ({
-    hour,
-    n: hour < 2 ? 1 : 0,
-    mae_mw: hour < 2 ? 2000 : null,
-    bias_mw: hour < 2 ? -2000 : null,
-    p10_mw: null,
-    p90_mw: null,
-  })),
-}
-
-export const byHorizon: ByHorizonResponse = {
-  window,
-  basis: 'point',
-  horizons: [0, 24, 48].map((h) => ({
-    horizon_h: h,
-    n: 2,
-    coverage_pct: 100,
-    mae_mw: 1500 + h * 10,
-    rmse_mw: 1800 + h * 10,
-    bias_mw: -1500,
-    p10_mw: -3000,
-    p90_mw: 300,
-  })),
-}
-
-export const vintages: VintagesResponse = {
-  target: '2026-01-02T01:00:00Z',
-  actual_mw: 9000,
-  day_ahead_cutoff: '2026-01-01T11:00:00Z',
-  day_ahead_choice: '2026-01-01T09:30:00Z',
-  vintages: [
-    {
-      publish_time: '2026-01-01T09:30:00Z',
-      lead_h: 15.5,
-      forecast_mw: 12000,
-      before_day_ahead_cutoff: true,
-    },
   ],
 }
 

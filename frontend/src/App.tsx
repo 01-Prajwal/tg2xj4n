@@ -1,23 +1,14 @@
 import { ChartLine, Database, Layers, ShoppingCart, Wind } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import type { Filters } from './api/types'
-import { AnalysisTabs } from './components/AnalysisTabs'
 import { Controls } from './components/Controls'
 import { DecisionPanel } from './components/DecisionPanel'
 import { MainChart } from './components/MainChart'
 import { Headline, StatTiles } from './components/Summary'
-import { VintagesPanel } from './components/VintagesPanel'
-import {
-  useByHorizon,
-  useByHour,
-  useHealth,
-  useMetrics,
-  useSeries,
-  useVintages,
-} from './hooks/useApi'
+import { useHealth, useMetrics, useSeries } from './hooks/useApi'
 import { fmtDateTime } from './lib/format'
-import { SLIDER_MAX_H, defaultFilters, worstHour } from './lib/selection'
+import { defaultFilters } from './lib/selection'
 
 type View = 'plan' | 'accuracy'
 
@@ -37,7 +28,6 @@ export default function App() {
   const [view, setViewState] = useState<View>(initialView)
   // User choices; until the user changes something, defaults come from the server.
   const [chosenFilters, setFilters] = useState<Filters | null>(null)
-  const [pickedTarget, setTarget] = useState<string | null>(null)
   const filters = chosenFilters ?? (health.data ? defaultFilters(health.data) : null)
 
   const setView = (v: View) => {
@@ -47,18 +37,6 @@ export default function App() {
 
   const series = useSeries(filters)
   const metrics = useMetrics(filters)
-  const byHour = useByHour(filters)
-  const byHorizon = useByHorizon(filters, SLIDER_MAX_H)
-
-  // Drill into the clicked hour if it is in the visible slice, else the worst miss.
-  const points = series.data?.points
-  const target = useMemo(() => {
-    if (!points) return null
-    return pickedTarget && points.some((p) => p.start_time === pickedTarget)
-      ? pickedTarget
-      : worstHour(points)
-  }, [points, pickedTarget])
-  const vintages = useVintages(target, filters?.basis ?? 'point')
 
   const snapshot = health.data?.snapshot
   const hero = (
@@ -198,30 +176,7 @@ export default function App() {
           {metrics.data && <Headline data={metrics.data} loading={metrics.isFetching} />}
           {metrics.data && <StatTiles data={metrics.data} loading={metrics.isFetching} />}
 
-          {series.data && (
-            <MainChart
-              data={series.data}
-              loading={series.isFetching}
-              selected={target}
-              onSelect={setTarget}
-            />
-          )}
-
-          {metrics.data && (
-            <div className="grid-2">
-              <AnalysisTabs
-                metrics={metrics.data}
-                byHour={byHour.data}
-                byHorizon={byHorizon.data}
-                loading={metrics.isFetching || byHour.isFetching || byHorizon.isFetching}
-              />
-              <VintagesPanel
-                data={vintages.data}
-                loading={vintages.isFetching}
-                error={vintages.error}
-              />
-            </div>
-          )}
+          {series.data && <MainChart data={series.data} loading={series.isFetching} />}
         </div>
 
         <footer className="footer">

@@ -83,7 +83,7 @@ npm run dev
 
 ```bash
 cd backend && ruff check . && mypy app scripts && pytest       # 69 tests
-cd frontend && npm run lint && npm run typecheck && npm test   # 20 tests
+cd frontend && npm run lint && npm run typecheck && npm test   # 19 tests
 ```
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs all of these on every
@@ -120,7 +120,7 @@ cd backend && python -m scripts.fetch_data
 | `frontend/src/api/` | Typed API client and TypeScript copies of the response schemas |
 | `frontend/src/hooks/` | TanStack Query hooks (cached, keep previous data while refetching), chart/table toggle |
 | `frontend/src/components/DecisionPanel.tsx` | Section 1, "Plan tomorrow's purchase": decision settings, latest-run summary, GWh tiles, hourly chart, run-by-run changes, backtest result |
-| `frontend/src/components/` (others) | Section 2: filters, headline and stat tiles, main chart, analysis tabs, forecast-history drill-down |
+| `frontend/src/components/` (others) | Section 2: filters, headline and stat tiles, actual-vs-forecast chart |
 | `frontend/src/lib/` | Formatting (UK time, GW), chart theme and tick helpers, date presets |
 | `api/index.py` | Vercel serverless entry point that imports the FastAPI app |
 | `vercel.json` | Vercel build: static frontend, Python function, `/api` rewrites |
@@ -176,9 +176,13 @@ Error is defined as **actual − forecast**. The app reports:
 - nMAE: MAE as a % of mean actual output. MAPE is not used because it is unstable
   near zero wind.
 - P10, P50 and P90 of the error, and the worst misses each way
-- error by UK hour of day, and error at every lead time from 0 to 48 h
 - **reliable wind** = forecast + P10 error: the output the desk can count on 9 times
   in 10. The band is in-sample: it is built from the same period's errors. Section 1's bands are not.
+
+The API also returns error by UK hour of day (`/api/metrics/by-hour`), error at every
+lead time from 0 to 48 h (`/api/metrics/by-horizon`) and every forecast made for one
+hour (`/api/forecast-vintages`). The findings above use them; the page does not show
+them.
 
 ### Architecture
 

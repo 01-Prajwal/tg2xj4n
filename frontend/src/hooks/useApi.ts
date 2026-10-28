@@ -25,30 +25,6 @@ export const useMetrics = (f: Filters | null) =>
     ...STATIC,
   })
 
-export const useByHour = (f: Filters | null) =>
-  useQuery({
-    queryKey: ['by-hour', f],
-    queryFn: ({ signal }) => api.byHour(f!, signal),
-    enabled: f !== null,
-    ...STATIC,
-  })
-
-export const useByHorizon = (f: Filters | null, maxH: number) =>
-  useQuery({
-    queryKey: ['by-horizon', f?.from, f?.to, f?.basis, maxH],
-    queryFn: ({ signal }) => api.byHorizon(f!, maxH, signal),
-    enabled: f !== null,
-    ...STATIC,
-  })
-
-export const useVintages = (target: string | null, basis: Filters['basis']) =>
-  useQuery({
-    queryKey: ['vintages', target, basis],
-    queryFn: ({ signal }) => api.vintages(target!, basis, signal),
-    enabled: target !== null,
-    ...STATIC,
-  })
-
 export const useDecision = (p: DecisionParams) =>
   useQuery({
     queryKey: ['decision', p],

@@ -3,16 +3,13 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import App from './App'
-import { buildPresets, worstHour } from './lib/selection'
+import { buildPresets } from './lib/selection'
 import * as fx from './test/fixtures'
 
 const ROUTES: [string, unknown][] = [
   ['/api/health', fx.health],
   ['/api/series', fx.series],
-  ['/api/metrics/by-hour', fx.byHour],
-  ['/api/metrics/by-horizon', fx.byHorizon],
   ['/api/metrics', fx.metrics],
-  ['/api/forecast-vintages', fx.vintages],
   ['/api/decision/backtest', fx.backtest],
   ['/api/decision', fx.decision],
 ]
@@ -65,17 +62,6 @@ describe('App', () => {
     expect(screen.getByLabelText('Published at least')).toBeInTheDocument()
     expect(
       fetchSpy.mock.calls.some(([u]) => String(u).includes('mode=horizon') && String(u).includes('h=24')),
-    ).toBe(true)
-  })
-
-  it('drills into the worst hour by default', async () => {
-    const fetchSpy = mockApi()
-    renderApp()
-    await screen.findByText(/At the 11:00 cutoff the trader saw/)
-    expect(
-      fetchSpy.mock.calls.some(([u]) =>
-        String(u).includes('forecast-vintages?target=2026-01-02T01%3A00%3A00Z'),
-      ),
     ).toBe(true)
   })
 
@@ -148,11 +134,6 @@ describe("Plan tomorrow's purchase", () => {
 })
 
 describe('helpers', () => {
-  it('picks the hour with the largest absolute error', () => {
-    expect(worstHour(fx.series.points)).toBe('2026-01-02T01:00:00Z')
-    expect(worstHour([])).toBeNull()
-  })
-
   it('splits the window into a full-period preset and weeks', () => {
     const presets = buildPresets(fx.health.default_window)
     expect(presets.map((p) => p.label)).toEqual([
