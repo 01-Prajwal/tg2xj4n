@@ -310,6 +310,10 @@ select {
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
+/* `display: grid` above would otherwise override the hidden attribute on the inactive view. */
+.section[hidden] {
+  display: none;
+}
 .section-intro {
   display: flex;
   align-items: flex-start;
